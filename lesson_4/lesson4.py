@@ -176,7 +176,7 @@ class InstagramBot():
 
         self.close_browser()
 
-    # тод скачивает контент со страницы пользователя
+    # метод скачивает контент со страницы пользователя
     def download_userpage_content(self, userpage):
 
         browser = self.browser
