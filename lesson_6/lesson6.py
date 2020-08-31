@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from auth_data import username, password
+from direct_users_list import direct_users_list
 import time
 import random
 from selenium.common.exceptions import NoSuchElementException
@@ -362,7 +363,7 @@ class InstagramBot():
         self.close_browser()
 
     # метод для отправки сообщений в директ
-    def send_direct_message(self, username="", message=""):
+    def send_direct_message(self, usernames="", message="", img_path=''):
 
         browser = self.browser
         time.sleep(random.randrange(2, 4))
@@ -382,34 +383,50 @@ class InstagramBot():
             browser.find_element_by_xpath("/html/body/div[4]/div/div/div/div[3]/button[2]").click()
         time.sleep(random.randrange(2, 4))
 
-        send_message_button = browser.find_element_by_xpath("/html/body/div[1]/section/div/div[2]/div/div/div[2]/div/button").click()
+        send_message_button = browser.find_element_by_xpath(
+            "/html/body/div[1]/section/div/div[2]/div/div/div[2]/div/button").click()
         time.sleep(random.randrange(2, 4))
 
-        # вводим получателя
-        to_input = browser.find_element_by_xpath("/html/body/div[4]/div/div/div[2]/div[1]/div/div[2]/input")
-        to_input.send_keys(username)
+        # отправка сообщения нескольким пользователям
+        for user in usernames:
+            # вводим получателя
+            to_input = browser.find_element_by_xpath("/html/body/div[4]/div/div/div[2]/div[1]/div/div[2]/input")
+            to_input.send_keys(user)
+            time.sleep(random.randrange(2, 4))
+
+            # выбираем получателя из списка
+            users_list = browser.find_element_by_xpath(
+                "/html/body/div[4]/div/div/div[2]/div[2]").find_element_by_tag_name("button").click()
+            time.sleep(random.randrange(2, 4))
+
+        next_button = browser.find_element_by_xpath(
+            "/html/body/div[4]/div/div/div[1]/div/div[2]/div/button").click()
         time.sleep(random.randrange(2, 4))
 
-        # выбираем получателя из списка
-        users_list = browser.find_element_by_xpath("/html/body/div[4]/div/div/div[2]/div[2]").find_element_by_tag_name("button").click()
-        time.sleep(random.randrange(2, 4))
+        # отправка текстового сообщения
+        if message:
+            text_message_area = browser.find_element_by_xpath(
+                "/html/body/div[1]/section/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[2]/textarea")
+            text_message_area.clear()
+            text_message_area.send_keys(message)
+            time.sleep(random.randrange(2, 4))
+            text_message_area.send_keys(Keys.ENTER)
+            print(f"Сообщение для {usernames} успешно отправлено!")
+            time.sleep(random.randrange(2, 4))
 
-        next_button = browser.find_element_by_xpath("/html/body/div[4]/div/div/div[1]/div/div[2]/div/button").click()
-        time.sleep(random.randrange(2, 4))
-
-        text_message_area = browser.find_element_by_xpath("/html/body/div[1]/section/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/div[2]/textarea")
-        text_message_area.clear()
-        text_message_area.send_keys(message)
-        time.sleep(random.randrange(2, 4))
-        text_message_area.send_keys(Keys.ENTER)
-        print(f"Сообщение для {username} успешно отправлено!")
+        # отправка изображения
+        if img_path:
+            send_img_input = browser.find_element_by_xpath("/html/body/div[1]/section/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/form/input")
+            send_img_input.send_keys(img_path)
+            print(f"Изображение для {usernames} успешно отправлено!")
+            time.sleep(random.randrange(2, 4))
 
         self.close_browser()
 
 
 my_bot = InstagramBot(username, password)
 my_bot.login()
-my_bot.send_direct_message("username", "Hey! Are u here?")
+my_bot.send_direct_message(direct_users_list, "Hey! How's it going?", "/home/cain/PycharmProjects/instagram_bot/lesson_6/img1.jpg")
 # my_bot.get_all_followers('https://www.instagram.com/username/')
 # my_bot.download_userpage_content("https://www.instagram.com/username/")
 

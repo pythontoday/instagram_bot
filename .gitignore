@@ -1,5 +1,6 @@
 .idea/
 venvInstagam_bot/
+venvInstBot/
 *.pyc
 auth_data.py
 
