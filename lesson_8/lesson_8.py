@@ -7,6 +7,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.options import Options
 import requests
 import os
+import json
 
 
 class InstagramBot():
@@ -18,8 +19,9 @@ class InstagramBot():
         self.password = password
         options = Options()
         # options.add_argument(f"--window-size={window_size}")
-        options.add_argument("--headless")
-        self.browser = webdriver.Chrome("../chromedriver/chromedriver", options=options)
+        # options.add_argument("--headless")
+        # self.browser = webdriver.Chrome("../chromedriver/chromedriver", options=options)
+        self.browser = webdriver.Chrome("../chromedriver/chromedriver")
 
     # метод для закрытия браузера
     def close_browser(self):
@@ -32,7 +34,7 @@ class InstagramBot():
 
         browser = self.browser
         browser.get('https://www.instagram.com')
-        time.sleep(random.randrange(3, 5))
+        time.sleep(random.randrange(5, 7))
 
         username_input = browser.find_element_by_name('username')
         username_input.clear()
@@ -434,21 +436,236 @@ class InstagramBot():
 
         self.close_browser()
 
+    # метод отписки от всех пользователей
+    def unsubscribe_for_all_users(self, userpage):
+
+        browser = self.browser
+        browser.get(f"https://www.instagram.com/{username}/")
+        time.sleep(random.randrange(3, 6))
+
+        following_button = browser.find_element_by_xpath("/html/body/div[1]/section/main/div/header/section/ul/li[3]/a")
+        following_count = following_button.find_element_by_tag_name("span").text
+
+        # если количество подписчиков больше 999, убираем из числа запятые
+        if ',' in following_count:
+            following_count = int(''.join(following_count.split(',')))
+        else:
+            following_count = int(following_count)
+
+        print(f"Количество подписок: {following_count}")
+
+        time.sleep(random.randrange(2, 4))
+
+        loops_count = int(following_count / 10) + 1
+        print(f"Количество перезагрузок страницы: {loops_count}")
+
+        following_users_dict = {}
+
+        for loop in range(1, loops_count + 1):
+
+            count = 10
+            browser.get(f"https://www.instagram.com/{username}/")
+            time.sleep(random.randrange(3, 6))
+
+            # кликаем/вызываем меню подписок
+            following_button = browser.find_element_by_xpath("/html/body/div[1]/section/main/div/header/section/ul/li[3]/a")
+
+            following_button.click()
+            time.sleep(random.randrange(3, 6))
+
+            # забираем все li из ul, в них хранится кнопка отписки и ссылки на подписки
+            following_div_block = browser.find_element_by_xpath("/html/body/div[4]/div/div/div[2]/ul/div")
+            following_users = following_div_block.find_elements_by_tag_name("li")
+            time.sleep(random.randrange(3, 6))
+
+            for user in following_users:
+
+                if not count:
+                    break
+
+                user_url = user.find_element_by_tag_name("a").get_attribute("href")
+                user_name = user_url.split("/")[-2]
+
+                # добавляем в словарь пару имя_пользователя: ссылка на аккаунт, на всякий, просто полезно сохранять информацию
+                following_users_dict[user_name] = user_url
+
+                following_button = user.find_element_by_tag_name("button").click()
+                time.sleep(random.randrange(3, 6))
+                unfollow_button = browser.find_element_by_xpath("/html/body/div[5]/div/div/div/div[3]/button[1]").click()
+
+                print(f"Итерация #{count} >>> Отписался от пользователя {user_name}")
+                count -= 1
+
+                # time.sleep(random.randrange(120, 130))
+                time.sleep(random.randrange(2, 4))
+
+        with open("following_users_dict.txt", "w", encoding="utf-8") as file:
+            json.dump(following_users_dict, file)
+
+        self.close_browser()
+
+    # метод отписки, отписываемся от всех кто не подписан на нас
+    def smart_unsubscribe(self, username):
+
+        browser = self.browser
+        browser.get(f"https://www.instagram.com/{username}/")
+        time.sleep(random.randrange(3, 6))
+
+        followers_button = browser.find_element_by_xpath("/html/body/div[1]/section/main/div/header/section/ul/li[2]/a/span")
+        followers_count = followers_button.get_attribute("title")
+
+        following_button = browser.find_element_by_xpath("/html/body/div[1]/section/main/div/header/section/ul/li[3]/a")
+        following_count = following_button.find_element_by_tag_name("span").text
+
+        time.sleep(random.randrange(3, 6))
+
+        # если количество подписчиков больше 999, убираем из числа запятые
+        if ',' in followers_count or following_count:
+            followers_count, following_count = int(''.join(followers_count.split(','))), int(''.join(following_count.split(',')))
+        else:
+            followers_count, following_count = int(followers_count), int(following_count)
+
+        print(f"Количество подписчиков: {followers_count}")
+        followers_loops_count = int(followers_count / 12) + 1
+        print(f"Число итераций для сбора подписчиков: {followers_loops_count}")
+
+        print(f"Количество подписок: {following_count}")
+        following_loops_count = int(following_count / 12) + 1
+        print(f"Число итераций для сбора подписок: {following_loops_count}")
+
+        # собираем список подписчиков
+        followers_button.click()
+        time.sleep(4)
+
+        followers_ul = browser.find_element_by_xpath("/html/body/div[4]/div/div/div[2]")
+
+        try:
+            followers_urls = []
+            print("Запускаем сбор подписчиков...")
+            for i in range(1, followers_loops_count + 1):
+                browser.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", followers_ul)
+                time.sleep(random.randrange(2, 4))
+                print(f"Итерация #{i}")
+
+            all_urls_div = followers_ul.find_elements_by_tag_name("li")
+
+            for url in all_urls_div:
+                url = url.find_element_by_tag_name("a").get_attribute("href")
+                followers_urls.append(url)
+
+            # сохраняем всех подписчиков пользователя в файл
+            with open(f"{username}_followers_list.txt", "a") as followers_file:
+                for link in followers_urls:
+                    followers_file.write(link + "\n")
+        except Exception as ex:
+            print(ex)
+            self.close_browser()
+
+        time.sleep(random.randrange(4, 6))
+        browser.get(f"https://www.instagram.com/{username}/")
+        time.sleep(random.randrange(3, 6))
+
+        # собираем список подписок
+        following_button = browser.find_element_by_xpath("/html/body/div[1]/section/main/div/header/section/ul/li[3]/a")
+        following_button.click()
+        time.sleep(random.randrange(3, 5))
+
+        following_ul = browser.find_element_by_xpath("/html/body/div[4]/div/div/div[2]")
+
+        try:
+            following_urls = []
+            print("Запускаем сбор подписок")
+
+            for i in range(1, following_loops_count + 1):
+                browser.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", following_ul)
+                time.sleep(random.randrange(2, 4))
+                print(f"Итерация #{i}")
+
+            all_urls_div = following_ul.find_elements_by_tag_name("li")
+
+            for url in all_urls_div:
+                url = url.find_element_by_tag_name("a").get_attribute("href")
+                following_urls.append(url)
+
+            # сохраняем всех подписок пользователя в файл
+            with open(f"{username}_following_list.txt", "a") as following_file:
+                for link in following_urls:
+                    following_file.write(link + "\n")
+
+            """Сравниваем два списка, если пользователь есть в подписках, но его нет в подписчиках,
+            заносим его в отдельный список"""
+
+            count = 0
+            unfollow_list = []
+            for user in following_urls:
+                if user not in followers_urls:
+                    count += 1
+                    unfollow_list.append(user)
+            print(f"Нужно отписаться от {count} пользователей")
+
+            # сохраняем всех от кого нужно отписаться в файл
+            with open(f"{username}_unfollow_list.txt", "a") as unfollow_file:
+                for user in unfollow_list:
+                    unfollow_file.write(user + "\n")
+
+            print("Запускаем отписку...")
+            time.sleep(2)
+
+            # заходим к каждому пользователю на страницу и отписываемся
+            with open(f"{username}_unfollow_list.txt") as unfollow_file:
+                unfollow_users_list = unfollow_file.readlines()
+                unfollow_users_list = [row.strip() for row in unfollow_users_list]
+
+            try:
+                count = len(unfollow_users_list)
+                for user_url in unfollow_users_list:
+                    browser.get(user_url)
+                    time.sleep(random.randrange(4, 6))
+
+                    # кнопка отписки
+                    unfollow_button = browser.find_element_by_xpath("/html/body/div[1]/section/main/div/header/section/div[1]/div[1]/div/div[2]/div/span/span[1]/button")
+                    unfollow_button.click()
+
+                    time.sleep(random.randrange(4, 6))
+
+                    # подтверждение отписки
+                    unfollow_button_confirm = browser.find_element_by_xpath("/html/body/div[4]/div/div/div/div[3]/button[1]")
+                    unfollow_button_confirm.click()
+
+                    print(f"Отписались от {user_url}")
+                    count -= 1
+                    print(f"Осталось отписаться от: {count} пользователей")
+
+                    # time.sleep(random.randrange(120, 130))
+                    time.sleep(random.randrange(4, 6))
+
+            except Exception as ex:
+                print(ex)
+                self.close_browser()
+
+        except Exception as ex:
+            print(ex)
+            self.close_browser()
+
+        time.sleep(random.randrange(4, 6))
+        self.close_browser()
+
 
 for user, user_data in users_settings_dict.items():
     username = user_data['login']
     password = user_data['password']
-    window_size = user_data['window_size']
+    # window_size = user_data['window_size']
 
     my_bot = InstagramBot(username, password)
     my_bot.login()
     # my_bot.close_browser()
     # my_bot.send_direct_message(direct_users_list, "Hey! How's it going?", "/home/cain/PycharmProjects/instagram_bot/lesson_6/img1.jpg")
-    my_bot.get_all_followers('username')
-    time.sleep(random.randrange(4, 8))
+    # my_bot.get_all_followers('username')
+    my_bot.smart_unsubscribe("username")
 
 # my_bot = InstagramBot(username, password)
 # my_bot.login()
 # my_bot.send_direct_message(direct_users_list, "Hey! How's it going?", "/home/cain/PycharmProjects/instagram_bot/lesson_6/img1.jpg")
 # my_bot.get_all_followers('https://www.instagram.com/username/')
 # my_bot.download_userpage_content("https://www.instagram.com/username/")
+

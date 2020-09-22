@@ -8,8 +8,8 @@ users_settings_dict = {
         'login': 'bot_login',
         'password': 'bot_password'
     },
-    'user2': {
-        'login': 'bot_login',
-        'password': 'bot_password'
-    }
+    # 'user2': {
+    #     'login': 'bot_login',
+    #     'password': 'bot_password'
+    # }
 }
